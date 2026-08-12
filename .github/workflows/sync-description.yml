@@ -1,0 +1,42 @@
+# Reusable Docker Hub description sync — pushes the caller's DOCKERHUB.md
+# to the image's Docker Hub page. Run after a successful publish.
+name: sync-description
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: "Docker Hub repository name without namespace"
+        required: true
+        type: string
+      short-description:
+        required: true
+        type: string
+      readme-file:
+        required: false
+        type: string
+        default: ./DOCKERHUB.md
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Sync Docker Hub description
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
+          short-description: ${{ inputs.short-description }}
+          readme-filepath: ${{ inputs.readme-file }}
