@@ -84,9 +84,20 @@ jobs:
     env:
       IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
       TEST_IMAGE: localbuild/${{ inputs.image }}:ci
-      CACHE_FROM: type=gha${{ inputs.cache-scope != '' && format(',scope={0}', inputs.cache-scope) || '' }}
-      CACHE_TO: type=gha,mode=max${{ inputs.cache-scope != '' && format(',scope={0}', inputs.cache-scope) || '' }}
     steps:
+      - name: Cache scope
+        # The apt/apk layer is the one that pulls security updates, and a warm
+        # GHA cache serves it unchanged for as long as the Dockerfile doesn't
+        # move — so a rebuild silently keeps shipping yesterday's packages and
+        # the Trivy gate starts failing on fixable CVEs. Rotating the scope
+        # daily keeps retries of the same day fast while guaranteeing the
+        # weekly rebuild (and any PR) actually re-runs the package install.
+        run: |
+          set -euo pipefail
+          scope="${{ inputs.cache-scope }}${{ inputs.cache-scope != '' && '-' || '' }}$(date -u +%Y%m%d)"
+          echo "CACHE_FROM=type=gha,scope=$scope" >> "$GITHUB_ENV"
+          echo "CACHE_TO=type=gha,mode=max,scope=$scope" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

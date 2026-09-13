@@ -25,7 +25,7 @@ jobs:
     secrets: inherit
 ```
 
-Key inputs (see the workflow file for the full list): `dockerfile`, `context`, `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
+Key inputs (see the workflow file for the full list): `dockerfile`, `context`, `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
 
 The Trivy gate fails the build on fixable CRITICAL/HIGH findings. Accepted risks go in a `.trivyignore` file in the caller repo root — it is picked up automatically.
 
