@@ -46,6 +46,20 @@ on:
         required: false
         type: string
         default: ""
+      version-command:
+        description: |
+          Shell command run against the built image ($IMAGE) that prints the
+          upstream version on stdout. Its output becomes extra tags
+          (<version>, <major.minor>) and org.opencontainers.image.version, so
+          a published version tag can only ever claim what the image contains.
+        required: false
+        type: string
+        default: ""
+      version-tag-suffix:
+        description: "Appended to every derived version tag, for repos that publish one image per flavor (e.g. -nginx)"
+        required: false
+        type: string
+        default: ""
       cache-scope:
         description: "GHA cache scope; set per matrix entry when one repo builds several variants"
         required: false
@@ -114,14 +128,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.IMAGE_REPO }}
-          tags: ${{ inputs.tags }}
-          labels: ${{ inputs.labels }}
-
       - name: Build for test and scan (amd64)
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -148,6 +154,47 @@ jobs:
           exit-code: "1"
           severity: ${{ inputs.trivy-severity }}
           ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
+
+      # Read the version out of the image that just passed the tests instead of
+      # out of the Dockerfile: a tag can then never claim a version that is not
+      # actually installed, including when the package manager resolves an
+      # unpinned dependency.
+      - name: Derive version tags
+        id: version
+        if: inputs.version-command != ''
+        env:
+          IMAGE: ${{ env.TEST_IMAGE }}
+        run: |
+          set -euo pipefail
+          version="$(${{ inputs.version-command }})"
+          case "$version" in
+            [0-9]*.[0-9]*) ;;
+            *) echo "version-command printed '$version', which is not a version" >&2; exit 1 ;;
+          esac
+          suffix='${{ inputs.version-tag-suffix }}'
+          series="$(echo "$version" | cut -d. -f1,2)"
+          {
+            echo "version=$version"
+            echo "tags<<TAGS_EOF"
+            echo "type=raw,value=${version}${suffix}"
+            [ "$series" = "$version" ] || echo "type=raw,value=${series}${suffix}"
+            echo "TAGS_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "resolved version: $version (series $series)"
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_REPO }}
+          tags: |
+            ${{ inputs.tags }}
+            ${{ steps.version.outputs.tags }}
+          # Last one wins, so an explicit version label overrides the one
+          # metadata-action derives from the first tag.
+          labels: |
+            ${{ inputs.labels }}
+            ${{ steps.version.outputs.version && format('org.opencontainers.image.version={0}', steps.version.outputs.version) || '' }}
 
       - name: Build and push
         id: push
