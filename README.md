@@ -2,7 +2,7 @@
 
 Reusable GitHub Actions workflows for the [`dementev/*` Docker Hub images](https://hub.docker.com/u/dementev) — the single source of truth for how every image is built, tested, scanned, published, and signed.
 
-Used by: [angie](https://github.com/vdementev/angie-docker) · [nginx](https://github.com/vdementev/nginx-docker) · [adminer](https://github.com/vdementev/docker-adminer-standalone) · [php-fpm-with-ext](https://github.com/vdementev/docker-php-fpm-with-ext) · [mysql-percona](https://github.com/vdementev/mysql-percona-docker)
+Used by: [angie](https://github.com/vdementev/angie-docker) · [nginx](https://github.com/vdementev/nginx-docker) · [adminer](https://github.com/vdementev/adminer-docker) · [mysql-percona](https://github.com/vdementev/mysql-percona-docker). [php-fpm-with-ext](https://github.com/vdementev/docker-php-fpm-with-ext) is still on its own legacy workflow; its migration is open as a pull request.
 
 ## Workflows
 
@@ -25,7 +25,27 @@ jobs:
     secrets: inherit
 ```
 
-Key inputs (see the workflow file for the full list): `dockerfile`, `context`, `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
+Key inputs (see the workflow file for the full list): `dockerfile`, `context`, `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
+
+### Version tags
+
+`version-command` runs against the image that has just been built, tested and
+scanned, and prints the upstream version on stdout. The workflow turns that into
+two extra tags — `<version>` and `<major.minor>` — plus
+`org.opencontainers.image.version`. Deriving the tag from the artifact rather
+than from the Dockerfile means a published tag can never claim a version the
+image does not contain, which matters most for the repos whose package is
+deliberately unpinned.
+
+```yaml
+    with:
+      version-command: docker run --rm "$IMAGE" nginx -v 2>&1 | sed -n 's|.*nginx/\([0-9][0-9.]*\).*|\1|p'
+```
+
+`version-tag-suffix` appends to both derived tags, for repos that publish one
+image per flavor (`-nginx` → `6.0.2-nginx`, `6.0-nginx`). The step fails the
+build if the command prints something that is not a version, so a broken
+extraction cannot publish a garbage tag.
 
 The Trivy gate fails the build on fixable CRITICAL/HIGH findings. Accepted risks go in a `.trivyignore` file in the caller repo root — it is picked up automatically.
 
@@ -74,3 +94,30 @@ cosign verify \
 ```
 
 SBOM and SLSA provenance (`mode=max`) attestations are pushed alongside every image; inspect with `docker buildx imagetools inspect dementev/<image> --format '{{ json .SBOM }}'`.
+
+## The images
+
+These workflows build and publish:
+
+| Image | What it does |
+|---|---|
+| [`dementev/angie`](https://hub.docker.com/r/dementev/angie) — [source](https://github.com/vdementev/angie-docker) | Public-facing reverse proxy and TLS terminator — Angie, the nginx fork, with brotli, zstd and cache-purge |
+| [`dementev/nginx`](https://hub.docker.com/r/dementev/nginx) — [source](https://github.com/vdementev/nginx-docker) | Static sites and SPAs behind that proxy — brotli/zstd siblings, Prometheus stub_status |
+| [`dementev/php-fpm-with-ext`](https://hub.docker.com/r/dementev/php-fpm-with-ext) — [source](https://github.com/vdementev/docker-php-fpm-with-ext) | PHP-FPM and CLI, PHP 7.0 → 8.5, with the extensions most projects reach for |
+| [`dementev/mysql-percona`](https://hub.docker.com/r/dementev/mysql-percona) — [source](https://github.com/vdementev/mysql-percona-docker) | Percona Server for MySQL 8.4 LTS, XtraBackup built in, no root inside |
+| [`dementev/adminer`](https://hub.docker.com/r/dementev/adminer) — [source](https://github.com/vdementev/adminer-docker) | Adminer 6 with every driver it supports, for reaching any of the above |
+
+## Maintainer
+
+Built and maintained by [Vasilii Dementev](https://vasiliidementev.com) at
+[Lotus Web Agency](https://lotuswebagency.com). These images are not a side
+project — they are the base layer under the client and product systems we run,
+which is why they are gated, tested and signed rather than pushed by hand.
+
+Issues and pull requests:
+[github.com/vdementev/docker-workflows](https://github.com/vdementev/docker-workflows).
+Need this kind of infrastructure built or maintained for your own stack?
+[lotuswebagency.com](https://lotuswebagency.com).
+
+MIT licensed — see [LICENSE](LICENSE). Security policy and reporting channel:
+[SECURITY.md](SECURITY.md).
