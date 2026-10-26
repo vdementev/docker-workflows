@@ -2,7 +2,7 @@
 
 Reusable GitHub Actions workflows for the [`dementev/*` Docker Hub images](https://hub.docker.com/u/dementev) — the single source of truth for how every image is built, tested, scanned, published, and signed.
 
-Used by: [angie](https://github.com/vdementev/angie-docker) · [nginx](https://github.com/vdementev/nginx-docker) · [adminer](https://github.com/vdementev/adminer-docker) · [mysql-percona](https://github.com/vdementev/mysql-percona-docker). [php-fpm-with-ext](https://github.com/vdementev/docker-php-fpm-with-ext) is still on its own legacy workflow; its migration is open as a pull request.
+Used by: [angie](https://github.com/vdementev/angie-docker) · [nginx](https://github.com/vdementev/nginx-docker) · [adminer](https://github.com/vdementev/adminer-docker) · [mysql-percona](https://github.com/vdementev/mysql-percona-docker). [php-fpm-with-ext](https://github.com/vdementev/docker-php-fpm-with-ext) never moved here and is deprecated in favor of [`lotuswebagency/php`](https://github.com/LotusWebAgency/php).
 
 ## Workflows
 
@@ -103,7 +103,6 @@ These workflows build and publish:
 |---|---|
 | [`dementev/angie`](https://hub.docker.com/r/dementev/angie) — [source](https://github.com/vdementev/angie-docker) | Public-facing reverse proxy and TLS terminator — Angie, the nginx fork, with brotli, zstd and cache-purge |
 | [`dementev/nginx`](https://hub.docker.com/r/dementev/nginx) — [source](https://github.com/vdementev/nginx-docker) | Static sites and SPAs behind that proxy — brotli/zstd siblings, Prometheus stub_status |
-| [`dementev/php-fpm-with-ext`](https://hub.docker.com/r/dementev/php-fpm-with-ext) — [source](https://github.com/vdementev/docker-php-fpm-with-ext) | PHP-FPM and CLI, PHP 7.0 → 8.5, with the extensions most projects reach for |
 | [`dementev/mysql-percona`](https://hub.docker.com/r/dementev/mysql-percona) — [source](https://github.com/vdementev/mysql-percona-docker) | Percona Server for MySQL 8.4 LTS, XtraBackup built in, no root inside |
 | [`dementev/adminer`](https://hub.docker.com/r/dementev/adminer) — [source](https://github.com/vdementev/adminer-docker) | Adminer 6 with every driver it supports, for reaching any of the above |
 
