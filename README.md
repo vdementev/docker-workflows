@@ -95,6 +95,16 @@ cosign verify \
   dementev/<image>@<digest>
 ```
 
+The certificate identity is this repo's `build-image.yml`, not the caller's workflow. For callers outside `vdementev` (e.g. `lotuswebagency/nginx-nodejs`), match the workflow and pin the caller repo:
+
+```sh
+cosign verify \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/vdementev/docker-workflows/\.github/workflows/build-image\.yml@' \
+  --certificate-github-workflow-repository LotusWebAgency/nginx-nodejs \
+  lotuswebagency/nginx-nodejs@<digest>
+```
+
 SBOM and SLSA provenance (`mode=max`) attestations are pushed alongside every image; inspect with `docker buildx imagetools inspect dementev/<image> --format '{{ json .SBOM }}'`.
 
 ## The images
