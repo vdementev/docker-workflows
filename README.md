@@ -27,9 +27,9 @@ jobs:
 
 Key inputs (see the workflow file for the full list): `namespace` (defaults to the `DOCKERHUB_USERNAME` secret), `dockerfile`, `context`, `target` (Dockerfile stage), `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `kev-gate`, `license-gate`, `cosign`, `timeout-minutes`.
 
-`environment` (a caller-repo environment holding `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, e.g. `release` restricted to `main`): `build-image.yml` enters it only when `push` is true, so pull-request runs never see the credentials, and the caller passes no `secrets:` at all. `sync-description.yml` takes the same input.
+`environment` (a caller-repo environment holding `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, e.g. `release` restricted to `main`): `build-image.yml` enters it only when `push` is true, so pull-request runs never see the credentials. `sync-description.yml` takes the same input. The caller must still pass `secrets: inherit`: a called workflow resolves environment secrets only through inherited secrets ([actions/runner#4453](https://github.com/actions/runner/issues/4453)).
 
-`secrets: inherit` only reaches workflows owned by the same account or organization. Callers in another organization (such as `LotusWebAgency/*`) pass `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` explicitly under `secrets:`.
+`secrets: inherit` only reaches workflows owned by the same account or organization. That is why this repo is mirrored to [LotusWebAgency/docker-workflows](https://github.com/LotusWebAgency/docker-workflows), with identical commits and tags: `LotusWebAgency/*` images call the mirror. Both remotes are pushed together; never change one alone.
 
 ### Version tags
 
@@ -110,12 +110,12 @@ cosign verify \
   dementev/<image>@<digest>
 ```
 
-The certificate identity is this repo's `build-image.yml`, not the caller's workflow. For callers outside `vdementev` (e.g. `lotuswebagency/nginx-nodejs`), match the workflow and pin the caller repo:
+The certificate identity is the called `build-image.yml`, not the caller's workflow. For `LotusWebAgency/*` callers, which use the mirror, match the mirror's workflow and pin the caller repo:
 
 ```sh
 cosign verify \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github\.com/vdementev/docker-workflows/\.github/workflows/build-image\.yml@' \
+  --certificate-identity-regexp '^https://github\.com/LotusWebAgency/docker-workflows/\.github/workflows/build-image\.yml@' \
   --certificate-github-workflow-repository LotusWebAgency/nginx-nodejs \
   lotuswebagency/nginx-nodejs@<digest>
 ```
