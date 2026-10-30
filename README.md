@@ -25,7 +25,7 @@ jobs:
     secrets: inherit
 ```
 
-Key inputs (see the workflow file for the full list): `namespace` (defaults to the `DOCKERHUB_USERNAME` secret), `dockerfile`, `context`, `target` (Dockerfile stage), `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
+Key inputs (see the workflow file for the full list): `namespace` (defaults to the `DOCKERHUB_USERNAME` secret), `dockerfile`, `context`, `target` (Dockerfile stage), `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `kev-gate`, `license-gate`, `cosign`, `timeout-minutes`.
 
 `environment` (a caller-repo environment holding `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, e.g. `release` restricted to `main`): `build-image.yml` enters it only when `push` is true, so pull-request runs never see the credentials, and the caller passes no `secrets:` at all. `sync-description.yml` takes the same input.
 
@@ -52,6 +52,19 @@ build if the command prints something that is not a version, so a broken
 extraction cannot publish a garbage tag.
 
 The Trivy gate fails the build on fixable CRITICAL/HIGH findings. Accepted risks go in a `.trivyignore` file in the caller repo root — it is picked up automatically.
+
+### Optional gates
+
+Both are off by default, so existing callers are unchanged. They run right after the Trivy vulnerability gate, against the same locally built image.
+
+- `kev-gate: true` — fails the build when the image has any finding listed in CISA's [Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) catalog, at any severity and whether or not a fix exists. The catalog is downloaded fresh on each run; a malformed catalog or Trivy report fails the gate rather than passing it. `.trivyignore` entries still apply.
+- `license-gate: true` — runs Trivy's license scanner and fails on AGPL packages (AGPL-1.0, AGPL-3.0, `-only`, `-or-later`) and nothing else; GPL and LGPL stay allowed.
+
+```yaml
+    with:
+      kev-gate: true
+      license-gate: true
+```
 
 ### `sync-description.yml`
 

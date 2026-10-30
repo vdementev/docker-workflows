@@ -83,6 +83,19 @@ on:
         required: false
         type: boolean
         default: true
+      kev-gate:
+        description: |
+          Fail when the scanned image contains any vulnerability listed in CISA's
+          Known Exploited Vulnerabilities catalog, whatever its severity and
+          whether or not a fix exists. A .trivyignore in the caller repo still applies.
+        required: false
+        type: boolean
+        default: false
+      license-gate:
+        description: "Fail when a Trivy license scan finds an AGPL-licensed package in the image"
+        required: false
+        type: boolean
+        default: false
       cosign:
         description: "Keyless-sign the pushed digest"
         required: false
@@ -178,6 +191,83 @@ jobs:
           severity: ${{ inputs.trivy-severity }}
           ignore-unfixed: ${{ inputs.trivy-ignore-unfixed }}
           version: v0.76.1
+
+      # Opt-in (kev-gate). Docker Scout's "no high-profile vulnerabilities" policy: no
+      # finding, of any severity and fixed or not, may be in CISA's KEV catalog. Trivy
+      # applies .trivyignore before it writes the report, so an accepted risk stays accepted.
+      - name: Trivy KEV report
+        if: inputs.kev-gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.TEST_IMAGE }}
+          format: json
+          output: ${{ runner.temp }}/kev-report.json
+          exit-code: "0"
+          scanners: vuln
+          cache: false
+          version: v0.76.1
+
+      - name: KEV gate
+        if: inputs.kev-gate
+        run: |
+          set -euo pipefail
+          catalog="$RUNNER_TEMP/known_exploited_vulnerabilities.json"
+          for attempt in 1 2 3 4 5; do
+            curl --fail --silent --show-error --location --output "$catalog" \
+              https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json && break
+            [ "$attempt" -lt 5 ] || { echo "::error::could not download the CISA KEV catalog"; exit 1; }
+            sleep $((attempt * 10))
+          done
+          # A catalog that is not the expected shape must never pass silently.
+          jq -e '(.catalogVersion | type == "string" and length > 0)
+                 and (.vulnerabilities | type == "array" and length > 0)
+                 and all(.vulnerabilities[]; (.cveID | type == "string" and length > 0))' "$catalog" >/dev/null \
+            || { echo "::error::the CISA KEV catalog is not in the expected shape"; exit 1; }
+          jq -e '.Results == null or (.Results | type == "array")' "$RUNNER_TEMP/kev-report.json" >/dev/null \
+            || { echo "::error::the Trivy report is not in the expected shape"; exit 1; }
+          echo "KEV catalog $(jq -r '.catalogVersion' "$catalog"): $(jq '.vulnerabilities | length' "$catalog") entries"
+          hits="$(jq -r --slurpfile kev "$catalog" '
+            ($kev[0].vulnerabilities | map({key: .cveID, value: .}) | from_entries) as $index
+            | [.Results[]?.Vulnerabilities[]? | select($index[.VulnerabilityID] != null)]
+            | .[]
+            | "KEV: \(.VulnerabilityID)  \(.PkgName) \(.InstalledVersion)  fixed: \(.FixedVersion // "no fix")  KEV added \($index[.VulnerabilityID].dateAdded)  ransomware use: \($index[.VulnerabilityID].knownRansomwareCampaignUse)"' \
+            "$RUNNER_TEMP/kev-report.json")"
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error::the image has findings in CISA's Known Exploited Vulnerabilities catalog"
+            exit 1
+          fi
+          echo "no finding is in the catalog"
+
+      # Opt-in (license-gate). Docker Scout's "no AGPL v3 licenses" policy. The config narrows
+      # Trivy's forbidden category to the AGPL ids; every other category keeps its default
+      # severity (GPL and LGPL stay restricted/HIGH, unlisted ids become UNKNOWN), so gating
+      # on CRITICAL fails on AGPL only.
+      - name: Write the license gate config
+        if: inputs.license-gate
+        run: |
+          cat > "$RUNNER_TEMP/trivy-license.yaml" <<'EOF'
+          license:
+            forbidden:
+              - AGPL-1.0
+              - AGPL-3.0
+              - AGPL-3.0-only
+              - AGPL-3.0-or-later
+          EOF
+
+      - name: Trivy license gate
+        if: inputs.license-gate
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.TEST_IMAGE }}
+          format: table
+          exit-code: "1"
+          scanners: license
+          severity: CRITICAL
+          cache: false
+          version: v0.76.1
+        env:
+          TRIVY_CONFIG: ${{ runner.temp }}/trivy-license.yaml
 
       # Read the version out of the image that just passed the tests instead of
       # out of the Dockerfile: a tag can then never claim a version that is not
