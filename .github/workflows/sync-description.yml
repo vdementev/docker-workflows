@@ -21,15 +21,23 @@ on:
         required: false
         type: string
         default: ./DOCKERHUB.md
+      environment:
+        description: "Caller-repo environment holding DOCKERHUB_USERNAME/DOCKERHUB_TOKEN; the job enters it only when publishing"
+        required: false
+        type: string
+        default: ""
+    # Optional so callers that keep them in `environment` pass none: a job
+    # inside an environment reads that environment's secrets instead.
     secrets:
       DOCKERHUB_USERNAME:
-        required: true
+        required: false
       DOCKERHUB_TOKEN:
-        required: true
+        required: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     timeout-minutes: 10
     permissions:
       contents: read

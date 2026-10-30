@@ -27,6 +27,8 @@ jobs:
 
 Key inputs (see the workflow file for the full list): `namespace` (defaults to the `DOCKERHUB_USERNAME` secret), `dockerfile`, `context`, `target` (Dockerfile stage), `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
 
+`environment` (a caller-repo environment holding `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN`, e.g. `release` restricted to `main`): `build-image.yml` enters it only when `push` is true, so pull-request runs never see the credentials, and the caller passes no `secrets:` at all. `sync-description.yml` takes the same input.
+
 `secrets: inherit` only reaches workflows owned by the same account or organization. Callers in another organization (such as `LotusWebAgency/*`) pass `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` explicitly under `secrets:`.
 
 ### Version tags
