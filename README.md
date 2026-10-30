@@ -2,7 +2,7 @@
 
 Reusable GitHub Actions workflows for the [`dementev/*` Docker Hub images](https://hub.docker.com/u/dementev) — the single source of truth for how every image is built, tested, scanned, published, and signed.
 
-Used by: [angie](https://github.com/vdementev/angie-docker) · [nginx](https://github.com/vdementev/nginx-docker) · [adminer](https://github.com/vdementev/adminer-docker) · [mysql-percona](https://github.com/vdementev/mysql-percona-docker). [php-fpm-with-ext](https://github.com/vdementev/docker-php-fpm-with-ext) never moved here and is deprecated in favor of [`lotuswebagency/php`](https://github.com/LotusWebAgency/php).
+Used by: [angie](https://github.com/vdementev/angie-docker) · [nginx](https://github.com/vdementev/nginx-docker) · [adminer](https://github.com/vdementev/adminer-docker) · [mysql-percona](https://github.com/vdementev/mysql-percona-docker) · [nginx-nodejs](https://github.com/LotusWebAgency/nginx-nodejs) (`lotuswebagency/` namespace). [php-fpm-with-ext](https://github.com/vdementev/docker-php-fpm-with-ext) never moved here and is deprecated in favor of [`lotuswebagency/php`](https://github.com/LotusWebAgency/php).
 
 ## Workflows
 
@@ -25,7 +25,9 @@ jobs:
     secrets: inherit
 ```
 
-Key inputs (see the workflow file for the full list): `dockerfile`, `context`, `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
+Key inputs (see the workflow file for the full list): `namespace` (defaults to the `DOCKERHUB_USERNAME` secret), `dockerfile`, `context`, `target` (Dockerfile stage), `platforms`, `build-args`, `labels` (metadata-action spec), `cache-scope` (set per matrix entry; the GHA cache scope rotates daily so package layers cannot go stale), `test-command` (runs with `$IMAGE` pointing at the locally built amd64 image), `version-command` / `version-tag-suffix`, `trivy-severity` / `trivy-ignore-unfixed`, `cosign`, `timeout-minutes`.
+
+`secrets: inherit` only reaches workflows owned by the same account or organization. Callers in another organization (such as `LotusWebAgency/*`) pass `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` explicitly under `secrets:`.
 
 ### Version tags
 

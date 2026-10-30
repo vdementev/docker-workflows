@@ -9,6 +9,11 @@ on:
         description: "Docker Hub repository name without namespace"
         required: true
         type: string
+      namespace:
+        description: "Docker Hub namespace; defaults to the DOCKERHUB_USERNAME secret"
+        required: false
+        type: string
+        default: ""
       short-description:
         required: true
         type: string
@@ -41,6 +46,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
+          repository: ${{ inputs.namespace || secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
           short-description: ${{ inputs.short-description }}
           readme-filepath: ${{ inputs.readme-file }}

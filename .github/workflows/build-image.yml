@@ -12,6 +12,11 @@ on:
         description: "Docker Hub repository name without namespace (e.g. angie)"
         required: true
         type: string
+      namespace:
+        description: "Docker Hub namespace; defaults to the DOCKERHUB_USERNAME secret"
+        required: false
+        type: string
+        default: ""
       tags:
         description: "docker/metadata-action tags spec"
         required: true
@@ -38,6 +43,11 @@ on:
         type: string
         default: linux/amd64,linux/arm64
       build-args:
+        required: false
+        type: string
+        default: ""
+      target:
+        description: "Dockerfile stage to build; empty builds the last stage"
         required: false
         type: string
         default: ""
@@ -96,7 +106,7 @@ jobs:
       contents: read
       id-token: write # cosign keyless OIDC
     env:
-      IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
+      IMAGE_REPO: ${{ inputs.namespace || secrets.DOCKERHUB_USERNAME }}/${{ inputs.image }}
       TEST_IMAGE: localbuild/${{ inputs.image }}:ci
     steps:
       - name: Cache scope
@@ -140,6 +150,7 @@ jobs:
           load: true
           tags: ${{ env.TEST_IMAGE }}
           build-args: ${{ inputs.build-args }}
+          target: ${{ inputs.target }}
           cache-from: ${{ env.CACHE_FROM }}
           cache-to: ${{ env.CACHE_TO }}
 
@@ -215,6 +226,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: ${{ inputs.build-args }}
+          target: ${{ inputs.target }}
           cache-from: ${{ env.CACHE_FROM }}
           cache-to: ${{ env.CACHE_TO }}
 
